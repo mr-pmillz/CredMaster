@@ -4,6 +4,7 @@ import threading, queue, argparse, datetime, json, importlib, random, os, time, 
 from utils.fire import FireProx
 import utils.utils as utils
 import utils.notify as notify
+from urllib.parse import quote
 
 
 class CredMaster(object):
@@ -93,6 +94,10 @@ class CredMaster(object):
 		self.jitter_min = args.jitter_min or config_dict.get("jitter_min")
 		self.delay = args.delay or config_dict.get("delay")
 		
+		# Proxy settings
+		self.proxy = args.proxy or config_dict.get("proxy")
+		self.proxy_auth = args.proxy_auth or config_dict.get("proxy_auth")
+		
 		self.batch_size = args.batch_size or config_dict.get("batch_size")
 		self.batch_delay = args.batch_delay or config_dict.get("batch_delay")
 		if self.batch_size != None and self.batch_delay == None:
@@ -155,25 +160,29 @@ class CredMaster(object):
 			self.log_entry(f"Useragent file {self.useragentfile} cannot be found")
 			sys.exit()
 
-		# AWS Key Handling
-		if self.session_token is not None and (self.secret_access_key is None or self.access_key is None):
-			self.log_entry("Session token requires access_key and secret_access_key")
-			sys.exit()
-		if self.profile_name is not None and (self.access_key is not None or self.secret_access_key is not None):
-			self.log_entry("Cannot use a passed profile and keys")
-			sys.exit()
-		if self.access_key is not None and self.secret_access_key is None:
-			self.log_entry("access_key requires secret_access_key")
-			sys.exit()
-		if self.access_key is None and self.secret_access_key is not None:
-			self.log_entry("secret_access_key requires access_key")
-			sys.exit()
-		if self.access_key is None and self.secret_access_key is None and self.session_token is None and self.profile_name is None:
-			self.log_entry("No FireProx access arguments settings configured, add access keys/session token or fill out config file")
-			sys.exit()
-
-		# Region handling
-		if self.region is not None and self.region not in self.regions:
+		# Determine if AWS/FireProx creds are required (utilities or no proxy provided)
+		require_aws = self.clean or self.api_list or (self.api_destroy is not None) or (self.proxy is None)
+		
+		# AWS Key Handling (only when required)
+		if require_aws:
+			if self.session_token is not None and (self.secret_access_key is None or self.access_key is None):
+				self.log_entry("Session token requires access_key and secret_access_key")
+				sys.exit()
+			if self.profile_name is not None and (self.access_key is not None or self.secret_access_key is not None):
+				self.log_entry("Cannot use a passed profile and keys")
+				sys.exit()
+			if self.access_key is not None and self.secret_access_key is None:
+				self.log_entry("access_key requires secret_access_key")
+				sys.exit()
+			if self.access_key is None and self.secret_access_key is not None:
+				self.log_entry("secret_access_key requires access_key")
+				sys.exit()
+			if self.access_key is None and self.secret_access_key is None and self.session_token is None and self.profile_name is None:
+				self.log_entry("No FireProx access arguments settings configured, add access keys/session token or fill out config file")
+				sys.exit()
+		
+		# Region handling (only matters for FireProx mode)
+		if require_aws and self.region is not None and self.region not in self.regions:
 			self.log_entry(f"Input region {self.region} not a supported AWS region, {self.regions}")
 			sys.exit()
 
@@ -268,6 +277,22 @@ class CredMaster(object):
 			self.log_entry(f"Setting static X-Forwarded-For header to: \"{self.xforwardedfor}\"")
 			pluginargs["xforwardedfor"] = self.xforwardedfor 
 			
+		# Build requests proxies if external proxy provided
+		if self.proxy is not None:
+			proxy_input = self.proxy
+			if not proxy_input.startswith("http://") and not proxy_input.startswith("https://"):
+				proxy_input = "http://" + proxy_input
+			if self.proxy_auth is not None:
+				user, pwd = self.proxy_auth.split(":", 1)
+				user_e = quote(user, safe='')
+				pwd_e = quote(pwd, safe='')
+				scheme, rest = proxy_input.split("://", 1)
+				proxy_url = f"{scheme}://{user_e}:{pwd_e}@{rest}"
+			else:
+				proxy_url = proxy_input
+			pluginargs["proxies"] = {"http": proxy_url, "https": proxy_url}
+			self.log_entry(f"External proxy configured: {proxy_input} (auth={'yes' if self.proxy_auth else 'no'})")
+
 		# this is the original URL, NOT the fireproxy one. Don't use this in your sprays!
 		url = pluginargs["url"]
 
@@ -389,10 +414,19 @@ class CredMaster(object):
 			self.log_entry("Thread count over maximum, reducing to 15")
 			self.thread_count = len(self.regions)
 
+		if self.proxy is not None:
+			self.log_entry(f"External proxy mode enabled; creating {self.thread_count} logical workers for {url}")
+			self.apis = []
+			for x in range(0, self.thread_count):
+				worker_region = f"proxy-{x+1}"
+				self.apis.append({"api_gateway_id": None, "proxy_url": url.strip(), "region": worker_region})
+				self.log_entry(f"Worker created - {worker_region} - {url}")
+			return
+		
 		self.log_entry(f"Creating {self.thread_count} API Gateways for {url}")
-
+		
 		self.apis = []
-
+		
 		# slow but multithreading this causes errors in boto3 for some reason :(
 		for x in range(0,self.thread_count):
 			reg = self.regions[x]
@@ -474,9 +508,13 @@ class CredMaster(object):
 
 
 	def destroy_apis(self):
-
+		
+		# In external proxy mode, nothing to destroy
+		if self.proxy is not None:
+			self.log_entry("External proxy mode: no AWS APIs to destroy")
+			return
+		
 		for api in self.apis:
-
 			args, help_str = self.get_fireprox_args("delete", api["region"], api_id = api["api_gateway_id"])
 			fp = FireProx(args, help_str)
 			self.log_entry(f"Destroying API ({args['api_id']}) in region {api['region']}")
@@ -739,6 +777,10 @@ if __name__ == '__main__':
 	adv_args.add_argument('--weekday_warrior', default=None, required=False, help="If you don't know what this is don't use it, input is timezone UTC offset")
 	adv_args.add_argument('--color', default=False, action="store_true", required=False, help="Output spray results in Green/Yellow/Red colors")
 	adv_args.add_argument('--trim', '--remove', action="store_true", help="Remove users with found credentials from future sprays")
+	
+	proxy_args = parser.add_argument_group(title='External Proxy Options')
+	proxy_args.add_argument('--proxy', type=str, default=None, help="External proxy endpoint 'host:port' or URL. If set, FireProx AWS creds are not required for spraying.")
+	proxy_args.add_argument('--proxy-auth', type=str, default=None, help="External proxy basic auth in 'user:pass' format. Optional.")
 
 	notify_args = parser.add_argument_group(title='Notification Inputs')
 	notify_args.add_argument('--slack_webhook', type=str, default=None, help='Webhook link for Slack notifications')
