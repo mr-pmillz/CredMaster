@@ -52,22 +52,17 @@ def msol_authenticate(url, username, password, useragent, pluginargs):
         'Accept' : 'application/json',
         'Content-Type' : 'application/x-www-form-urlencoded'
     }
-    proxy_auth_b64 = ''
-    if pluginargs.get('proxy-auth') != '':
-        proxy_auth_b64 = base64.b64encode(str(pluginargs.get('proxy-auth')).encode('utf-8'))
     proxy_headers = {
-        'Proxy-Authorization': f'Basic {proxy_auth_b64}',
         "User-Agent" : useragent,
         'Accept' : 'application/json',
         'Content-Type' : 'application/x-www-form-urlencoded',
-        'Proxy-Connection': 'Keep-Alive'
     }
 
     headers = utils.add_custom_headers(pluginargs, headers)
 
     try:
         proxies = pluginargs.get('proxies') if isinstance(pluginargs, dict) else None
-        if proxies is not None and proxy_auth_b64 != "":
+        if proxies is not None:
             resp = requests.post(f"{url}/common/oauth2/token", headers=proxy_headers, data=body, proxies=proxies)
         else:
             resp = requests.post(f"{url}/common/oauth2/token", headers=headers, data=body, proxies=proxies)
