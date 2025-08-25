@@ -1,6 +1,7 @@
 import requests, random
 import utils.utils as utils
 requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
+import base64
 
 
 def extract_error(desc):
@@ -51,12 +52,25 @@ def msol_authenticate(url, username, password, useragent, pluginargs):
         'Accept' : 'application/json',
         'Content-Type' : 'application/x-www-form-urlencoded'
     }
+    proxy_auth_b64 = ''
+    if pluginargs.get('proxy-auth') != '':
+        proxy_auth_b64 = base64.b64encode(str(pluginargs.get('proxy-auth')).encode('utf-8'))
+    proxy_headers = {
+        'Proxy-Authorization': f'Basic {proxy_auth_b64}',
+        "User-Agent" : useragent,
+        'Accept' : 'application/json',
+        'Content-Type' : 'application/x-www-form-urlencoded',
+        'Proxy-Connection': 'Keep-Alive'
+    }
 
     headers = utils.add_custom_headers(pluginargs, headers)
 
     try:
         proxies = pluginargs.get('proxies') if isinstance(pluginargs, dict) else None
-        resp = requests.post(f"{url}/common/oauth2/token", headers=headers, data=body, proxies=proxies)
+        if proxies is not None and proxy_auth_b64 != "":
+            resp = requests.post(f"{url}/common/oauth2/token", headers=proxy_headers, data=body, proxies=proxies)
+        else:
+            resp = requests.post(f"{url}/common/oauth2/token", headers=headers, data=body, proxies=proxies)
 
         if resp.status_code == 200:
             data_response['result'] = "success"
