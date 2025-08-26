@@ -33,15 +33,15 @@ def httppost_authenticate(url, username, password, useragent, pluginargs):
     headers = utils.add_custom_headers(pluginargs, headers)
 
     try:
-
         resp = None
+        proxies = pluginargs.get('proxies') if isinstance(pluginargs, dict) else None
 
         full_url = f"{url}/{pluginargs['uri']}"
 
         # Replace {USER} and {PASS} placeholders in the body
         body = pluginargs['body'].replace("{USER}", username).replace("{PASS}", password)
 
-        resp = requests.post(url=full_url, data=body, headers=headers, verify=False, timeout=30)
+        resp = requests.post(url=full_url, data=body, headers=headers, proxies=proxies, verify=False, timeout=30)
 
         if resp.status_code == 200:
             data_response['result'] = "success"

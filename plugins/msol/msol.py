@@ -65,8 +65,8 @@ def msol_authenticate(url, username, password, useragent, pluginargs):
 
         else:
             response = resp.json()
-            error = response["error_description"]
-            error_code = extract_error(error)
+            error = response.get("error_description", "")
+            error_code = extract_error(error) if error else str(resp.status_code)
 
             if "AADSTS50126" in error:
                 data_response['result'] = "failure"
@@ -132,9 +132,19 @@ def msol_authenticate(url, username, password, useragent, pluginargs):
                 data_response['result'] = "failure"
                 data_response['output'] = f"[-] FAILURE ({error_code}): Got an error we haven't seen yet for user {username}"
 
+    except requests.exceptions.ProxyError as ex:
+        data_response['error'] = True
+        msg = str(ex)
+        hint = " Use --proxy-auth 'user:pass' or verify the provided proxy credentials."
+        if "407" in msg:
+            data_response['output'] = f"Proxy authentication required (HTTP 407).{hint}"
+        else:
+            data_response['output'] = f"Proxy connection error: {msg}.{hint}"
+    except requests.exceptions.RequestException as ex:
+        data_response['error'] = True
+        data_response['output'] = f"Request error: {ex}"
     except Exception as ex:
         data_response['error'] = True
-        data_response['output'] = ex
-        pass
+        data_response['output'] = str(ex)
 
     return data_response

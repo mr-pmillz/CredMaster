@@ -27,22 +27,22 @@ def httpbrute_authenticate(url, username, password, useragent, pluginargs):
     headers = utils.add_custom_headers(pluginargs, headers)
 
     try:
-
         resp = None
+        proxies = pluginargs.get('proxies') if isinstance(pluginargs, dict) else None
 
         full_url = f"{url}/{pluginargs['uri']}"
 
         if pluginargs['auth'] == 'basic':
             auth = requests.auth.HTTPBasicAuth(username, password)
-            resp = requests.get(url=full_url, auth=auth, verify=False, timeout=30)
+            resp = requests.get(url=full_url, auth=auth, verify=False, timeout=30, proxies=proxies)
 
         elif pluginargs['auth'] == 'digest':
             auth = requests.auth.HTTPDigestAuth(username, password)
-            resp = requests.get(url=full_url, auth=auth, verify=False, timeout=30)
+            resp = requests.get(url=full_url, auth=auth, verify=False, timeout=30, proxies=proxies)
 
         else: # NTLM
             auth = requests_ntlm.HttpNtlmAuth(username, password)
-            resp = requests.get(url=full_url, auth=auth, verify=False, timeout=30)
+            resp = requests.get(url=full_url, auth=auth, verify=False, timeout=30, proxies=proxies)
 
 
         if resp.status_code == 200:
@@ -61,7 +61,7 @@ def httpbrute_authenticate(url, username, password, useragent, pluginargs):
 
     except Exception as ex:
         data_response['error'] = True
-        data_response['output'] = ex
+        data_response['output'] = str(ex)
         pass
 
     return data_response

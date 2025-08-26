@@ -55,6 +55,10 @@ def pingfed_authenticate(url, username, password, useragent, pluginargs):
 
         # Get cookie and form action URL. Update with each request to avoid "page expired" responses.
         sess = requests.session()
+        proxies = pluginargs.get('proxies') if isinstance(pluginargs, dict) else None
+        # add proxies to the session if proxies are provided
+        if isinstance(proxies, dict):
+            sess.proxies = proxies
         resp = sess.get(full_url, headers=headers, params=params_data)
         page = BeautifulSoup(resp.text, features="html.parser")
         action = page.find('form').get('action')

@@ -29,8 +29,8 @@ def owa_authenticate(url, username, password, useragent, pluginargs):
     headers = utils.add_custom_headers(pluginargs, headers)
 
     try:
-
-        resp = requests.get(f"{url}/autodiscover/autodiscover.xml", headers=headers, auth=HttpNtlmAuth(username, password), verify=False)
+        proxies = pluginargs.get('proxies') if isinstance(pluginargs, dict) else None
+        resp = requests.get(f"{url}/autodiscover/autodiscover.xml", headers=headers, auth=HttpNtlmAuth(username, password), verify=False, proxies=proxies)
 
         if resp.status_code == 200:
             data_response['output'] = f"[+] SUCCESS: Found credentials: {username}:{password}"

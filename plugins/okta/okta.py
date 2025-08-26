@@ -30,7 +30,8 @@ def okta_authenticate(url, username, password, useragent, pluginargs):
     headers = utils.add_custom_headers(pluginargs, headers)
 
     try:
-        resp = requests.post(f"{url}/api/v1/authn/",data=raw_body,headers=headers)
+        proxies = pluginargs.get('proxies') if isinstance(pluginargs, dict) else None
+        resp = requests.post(f"{url}/api/v1/authn/", data=raw_body, headers=headers, proxies=proxies)
 
         if resp.status_code == 200:
             resp_json = json.loads(resp.text)

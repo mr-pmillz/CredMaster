@@ -21,12 +21,23 @@ def testconnect(pluginargs, args, api_dict, useragent):
     headers = utils.add_custom_headers(pluginargs, headers)
 
     proxies = pluginargs.get('proxies') if isinstance(pluginargs, dict) else None
-    resp = requests.get(api_dict['proxy_url'], headers=headers, proxies=proxies)
-
-    if resp.status_code == 504:
-        output = "Testconnect: Connection failed, endpoint timed out, exiting"
+    try:
+        resp = requests.get(api_dict['proxy_url'], headers=headers, proxies=proxies)
+        if resp.status_code == 504:
+            output = "Testconnect: Connection failed, endpoint timed out, exiting"
+            success = False
+        else:
+            output = "Testconnect: Connection success, continuing"
+    except requests.exceptions.ProxyError as ex:
         success = False
-    else:
-        output = "Testconnect: Connection success, continuing"
+        msg = str(ex)
+        hint = " Add --proxy-auth 'user:pass' or verify provided credentials if your proxy requires authentication."
+        if "407" in msg:
+            output = f"Testconnect: Proxy authentication required (HTTP 407).{hint}"
+        else:
+            output = f"Testconnect: Proxy connection error: {msg}.{hint}"
+    except Exception as ex:
+        success = False
+        output = f"Testconnect: Unexpected error: {ex}"
 
     return success, output, pluginargs

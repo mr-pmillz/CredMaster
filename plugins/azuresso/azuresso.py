@@ -83,7 +83,8 @@ def azuresso_authenticate(url, username, password, useragent, pluginargs):
     headers = utils.add_custom_headers(pluginargs, headers)
 
     try:
-        r = requests.post(f"{url}/{pluginargs['domain']}/winauth/trust/2005/usernamemixed?client-request-id={requestid}", data=tempdata, headers=headers, verify=False, timeout=30)
+        proxies = pluginargs.get('proxies') if isinstance(pluginargs, dict) else None
+        r = requests.post(f"{url}/{pluginargs['domain']}/winauth/trust/2005/usernamemixed?client-request-id={requestid}", data=tempdata, headers=headers, proxies=proxies, verify=False, timeout=30)
 
         xmlresponse = str(r.content)
         creds = username + ":" + password

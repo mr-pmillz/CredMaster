@@ -54,7 +54,8 @@ def o365enum_authenticate(url, username, password, useragent, pluginargs):
 
         sess = requests.session()
 
-        response = sess.post(f"{url}/common/GetCredentialType", headers=headers, data=body)
+        proxies = pluginargs.get('proxies') if isinstance(pluginargs, dict) else None
+        response = sess.post(f"{url}/common/GetCredentialType", headers=headers, data=body, proxies=proxies)
 
         throttle_status = int(response.json()['ThrottleStatus'])
         if_exists_result = str(response.json()['IfExistsResult'])

@@ -30,7 +30,8 @@ def testconnect(pluginargs, args, api_dict, useragent):
 
     headers = utils.add_custom_headers(pluginargs, headers)
 
-    resp = requests.get(url, headers=headers, verify=False)
+    proxies = pluginargs.get('proxies') if isinstance(pluginargs, dict) else None
+    resp = requests.get(url, headers=headers, verify=False, proxies=proxies)
 
     if resp.status_code == 504:
         output = "Testconnect: Connection failed, endpoint timed out, exiting"

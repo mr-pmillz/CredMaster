@@ -29,8 +29,8 @@ def ews_authenticate(url, username, password, useragent, pluginargs):
     headers = utils.add_custom_headers(pluginargs, headers)
 
     try:
-
-        resp = requests.post(f"{url}/ews/", headers=headers, auth=HttpNtlmAuth(username, password), verify=False)
+        proxies = pluginargs.get('proxies') if isinstance(pluginargs, dict) else None
+        resp = requests.post(f"{url}/ews/", headers=headers, auth=HttpNtlmAuth(username, password), verify=False, proxies=proxies)
 
         if resp.status_code == 500:
             data_response['output'] = f"[*] POTENTIAL: Found credentials, but server returned 500: {username}:{password}"

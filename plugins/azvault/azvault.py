@@ -55,7 +55,8 @@ def azvault_authenticate(url, username, password, useragent, pluginargs):
     headers = utils.add_custom_headers(pluginargs, headers)
 
     try:
-        resp = requests.post(f"{url}/common/oauth2/token", headers=headers, data=body)
+        proxies = pluginargs.get('proxies') if isinstance(pluginargs, dict) else None
+        resp = requests.post(f"{url}/common/oauth2/token", headers=headers, data=body, proxies=proxies)
 
         if resp.status_code == 200:
             data_response['result'] = "success"

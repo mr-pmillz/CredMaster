@@ -33,8 +33,8 @@ def template_authenticate(url, username, password, useragent, pluginargs): # CHA
     headers = utils.add_custom_headers(pluginargs, headers)
 
     try:
-
-        resp = requests.post(f"{url}/uri",headers=headers)
+        proxies = pluginargs.get('proxies') if isinstance(pluginargs, dict) else None
+        resp = requests.post(f"{url}/uri", headers=headers, proxies=proxies)
 
         if Success:
             data_response['result'] = "success"

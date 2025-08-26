@@ -70,17 +70,27 @@ The following plugins are currently supported:
 
 
 Example Use:
-```
+
+```shell
 python3 credmaster.py --plugin {pluginname} --access_key {key} --secret_access_key {key} -u userfile -p passwordfile -a useragentfile {otherargs}
 ```
 
 or
 
-```
+```shell
 python3 credmaster.py --config config.json
 ```
 
-This tool requires AWS API access keys, a walkthrough on how to acquire these keys can be found here: https://bond-o.medium.com/aws-pass-through-proxy-84f1f7fa4b4b
+This tool primarily requires AWS API access keys, a walkthrough on how to acquire these keys can be found here: https://bond-o.medium.com/aws-pass-through-proxy-84f1f7fa4b4b
+
+However: if you want to use a custom proxy instead of AWS IP gateways, you can use the `--proxy` and `--proxy-auth` arguments to specify a proxy to use. If your proxy does not require auth, then only use the `--proxy` argument.
+ex:
+
+```shell
+python3 credmaster.py --plugin {pluginname} --proxy 'foo.bar.baz:12345' --proxy-auth 'proxyuser:proxypass' -u userfile -p passwordfile -a useragentfile {otherargs}
+```
+
+currently, `--proxy` option only supports HTTP proxies and doesn't yet support multiple proxies, but this would be relatively easy to add support for.
 
 All other usage details can be found [on the wiki](https://github.com/knavesec/CredMaster/wiki/Usage)
 
